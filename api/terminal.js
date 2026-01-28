@@ -1,21 +1,35 @@
-export default async function handler(req, res) {
-    const { rawText } = req.body; // Весь текст из Roblox
-    const lines = rawText.split('\n').map(l => l.trim());
-    const action = lines[0]; // Первая строка (напр. "create account" или "add file")
+import { Octokit } from "@octokit/rest";
+import bcrypt from "bcryptjs";
 
-    if (action === "create account") {
-        // Логика парсинга для регистрации
-        const username = lines.find(l => l.startsWith('username =')).split('=')[1].trim();
-        const password = lines.find(l => l.startsWith('password =')).split('=')[1].trim();
-        // Вызов функции регистрации (которую мы обсуждали выше)
-        return registerUser(username, password, res);
+const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+
+export default async function handler(req, res) {
+    // Эксплоиты иногда шлют данные странно, проверяем все варианты
+    const data = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    
+    // Вытаскиваем юзера и пароль (проверяем разные ключи на всякий случай)
+    const username = data.user || data.username;
+    const password = data.pass || data.password;
+
+    if (!username || !password) {
+        return res.status(400).json({ error: "Missing username or password in request" });
     }
 
-    if (action === "add file") {
-        // Парсим: add file Print.lua = text
-        const contentPart = rawText.split('=')[1].trim();
-        const fileName = lines[0].replace('add file ', '').split('=')[0].trim();
-        // Вызов функции загрузки на GitHub
-        return uploadFile(fileName, contentPart, res);
+    try {
+        const hashed = await bcrypt.hash(String(password), 10);
+
+        await octokit.repos.createOrUpdateFileContents({
+            owner: "lixeal",
+            repo: "weh-face",
+            path: `data/accounts/${username}.json`,
+            message: `Register: ${username}`,
+            content: Buffer.from(JSON.stringify({ username, password: hashed })).toString('base64')
+        });
+
+        // Возвращаем спец-строку для нашего Lua
+        const authData = JSON.stringify({ username, password });
+        res.status(200).send(`AUTH_SUCCESS|${authData}`);
+    } catch (e) {
+        res.status(500).send("Server Error: " + e.message);
     }
 }
