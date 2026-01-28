@@ -4,32 +4,30 @@ import bcrypt from "bcryptjs";
 const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 
 export default async function handler(req, res) {
-    // Безопасно парсим тело запроса
     let data = req.body;
+    // Если данные пришли как строка, пробуем превратить в объект
     if (typeof data === 'string') {
-        try { data = JSON.parse(data); } catch (e) { data = req.query; }
+        try { data = JSON.parse(data); } catch (e) { 
+            // Если не JSON, возможно это параметры URL
+            data = req.query; 
+        }
     }
 
-    // Вытаскиваем юзера и пароль из любых возможных полей
     const username = data.user || data.username || req.query.user;
     const password = data.pass || data.password || req.query.pass;
 
-    // Жесткая проверка перед тем, как отдавать bcrypt
+    // Проверка, чтобы сервер не падал
     if (!username || !password) {
-        return res.status(400).json({ 
-            error: "Missing credentials", 
-            details: "Server didn't receive user or pass" 
-        });
+        return res.status(400).json({ error: "Missing user or pass" });
     }
 
     try {
         const hashed = await bcrypt.hash(String(password), 10);
-
         await octokit.repos.createOrUpdateFileContents({
             owner: "lixeal",
             repo: "weh-face",
             path: `data/accounts/${username}.json`,
-            message: `Register: ${username}`,
+            message: `Reg: ${username}`,
             content: Buffer.from(JSON.stringify({ username, password: hashed })).toString('base64')
         });
 
