@@ -1,33 +1,31 @@
 local HttpService = game:GetService("HttpService")
 local infoPath = "auraware/wf/info.json"
 
--- [Универсальная функция запроса для обхода блокировок]
-local function safe_request(url, data)
-    local jsonBody = HttpService:JSONEncode(data)
-    -- Ищем функцию request в твоем эксплоите
+local function safe_request(url, payload)
     local req_func = (syn and syn.request) or (http and http.request) or http_request or request
+    local body = HttpService:JSONEncode(payload)
     
     if req_func then
-        local res = req_func({
-            Url = url,
-            Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
-            Body = jsonBody
-        })
-        return {Success = (res.StatusCode == 200), Body = res.Body}
-    else
-        -- Если request() не найден, пробуем обычный PostAsync через pcall
-        local success, result = pcall(function()
-            return HttpService:PostAsync(url, jsonBody, Enum.HttpContentType.ApplicationJson)
+        local success, response = pcall(function()
+            return req_func({
+                Url = url,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = body
+            })
         end)
-        return {Success = success, Body = result}
+        if success and response then
+            return {Success = (response.StatusCode == 200), Body = response.Body}
+        end
     end
+    -- Если request не сработал, это крайний случай
+    return {Success = false, Body = "Request function not found or failed"}
 end
 
 local wf = {}
 
 function wf.register(user, pass)
-    print("[WF]: Попытка регистрации...")
+    print("[WF]: Регистрация...")
     local res = safe_request("https://weh-face.vercel.app/register", {
         user = tostring(user),
         pass = tostring(pass)
@@ -35,14 +33,12 @@ function wf.register(user, pass)
     
     if res.Success then
         if res.Body:find("AUTH_SUCCESS") then
-            -- Сохраняем данные в папку workspace эксплоита
-            pcall(function()
-                if not isfolder("auraware") then makefolder("auraware") end
-                if not isfolder("auraware/wf") then makefolder("auraware/wf") end
-                local rawData = res.Body:split("|")[2]
-                writefile(infoPath, rawData)
-            end)
-            print("[WF]: Успех! Аккаунт создан и данные сохранены.")
+            if not isfolder("auraware/wf") then 
+                makefolder("auraware") makefolder("auraware/wf") 
+            end
+            local data = res.Body:split("|")[2]
+            writefile(infoPath, data)
+            print("[WF]: Аккаунт создан!")
         else
             print("[WF Server]: " .. tostring(res.Body))
         end
@@ -52,7 +48,4 @@ function wf.register(user, pass)
 end
 
 _G.wf = wf
-print("---------------------------------------")
-print("[WEH-FACE] Core v3 Loaded!")
-print("Используй: _G.wf.register('nick', 'pass')")
-print("---------------------------------------")
+print("[WF]: v4 Loaded. Use _G.wf.register('nick', 'pass')")
