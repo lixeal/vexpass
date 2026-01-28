@@ -1,31 +1,51 @@
 local HttpService = game:GetService("HttpService")
 local infoPath = "auraware/wf/info.json"
 
+-- Универсальная функция запроса для эксплоитов
+local function internal_request(options)
+    local req = (syn and syn.request) or (http and http.request) or http_request or request
+    if req then
+        return req(options)
+    end
+    -- Если кастомных функций нет, пробуем стандарт (может выбить ошибку)
+    local success, res = pcall(function()
+        return HttpService:PostAsync(options.Url, options.Body, Enum.HttpContentType.ApplicationJson)
+    end)
+    return {Success = success, Body = res}
+end
+
 local wf = {}
 
--- Внутренняя функция для отправки запросов
-local function send(payload)
-    local success, response = pcall(function()
-        return HttpService:PostAsync(
-            "https://weh-face.vercel.app/api/main", 
-            HttpService:JSONEncode(payload)
-        )
-    end)
-    
-    if success then
-        if response:find("AUTH_SUCCESS") then
+local function send(url, payload)
+    local response = internal_request({
+        Url = url,
+        Method = "POST",
+        Headers = {["Content-Type"] = "application/json"},
+        Body = HttpService:JSONEncode(payload)
+    })
+
+    if response.Success or (response.StatusCode and response.StatusCode == 200) then
+        local body = response.Body
+        
+        -- Проверка на AUTH_SUCCESS
+        if body:find("AUTH_SUCCESS") then
             if not isfolder("auraware/wf") then makefolder("auraware/wf") end
-            local jsonData = response:split("|")[2]
+            local jsonData = body:split("|")[2]
             writefile(infoPath, jsonData)
             return "Аккаунт успешно привязан!"
         end
-        return response
+        
+        -- Пытаемся декодировать JSON ответ
+        local ok, decoded = pcall(function() return HttpService:JSONDecode(body) end)
+        if ok then
+            return decoded.url or decoded.message or body
+        end
+        return body
     else
-        return "Ошибка: " .. tostring(response)
+        return "Ошибка сети: " .. tostring(response.Body or "Unknown Error")
     end
 end
 
--- Вспомогательная функция для получения текущих данных
 local function getCreds()
     if isfile(infoPath) then
         return HttpService:JSONDecode(readfile(infoPath))
@@ -33,32 +53,25 @@ local function getCreds()
     return {}
 end
 
--- [1] Регистрация
+-- Команды
 function wf.register(user, pass)
-    local cmd = string.format("create account\nusername = %s\npassword = %s", user, pass)
-    print("[WF]: Регистрируем...")
-    print(send({command = cmd}))
+    local payload = {
+        command = string.format("create account\nusername = %s\npassword = %s", user, pass)
+    }
+    print("[WF]: Регистрация на сервере...")
+    print(send("https://weh-face.vercel.app/register", payload))
 end
 
--- [2] Загрузка файла
 function wf.add(path, content)
     local creds = getCreds()
-    local cmd = string.format("add file %s =\n%s", path, content)
-    print("[WF]: Загрузка файла " .. path .. "...")
-    print(send({
-        command = cmd,
+    local payload = {
+        command = string.format("add file %s =\n%s", path, content),
         user = creds.username,
         pass = creds.password
-    }))
-end
-
--- [3] Быстрая авторизация (если уже есть акк, но нет файла info)
-function wf.login(user, pass)
-    -- Просто перезаписываем инфо через команду создания (бекэнд поймет)
-    wf.register(user, pass)
+    }
+    print("[WF]: Загрузка в репозиторий...")
+    print(send("https://weh-face.vercel.app/execute", payload))
 end
 
 _G.wf = wf
-print("[WF]: Удобный ввод загружен! Используйте:")
-print("_G.wf.register('nick', 'pass')")
-print("_G.wf.add('folder/file.lua', 'print(1)')")
+print("[WF]: Ядро (v2) загружено через request()")
