@@ -2,16 +2,8 @@
   "version": 2,
   "rewrites": [
     { 
-      "source": "/raw/:path*", 
-      "destination": "/api/raw/[...path]" 
-    },
-    { 
-      "source": "/register", 
-      "destination": "/api/auth/register" 
-    },
-    { 
-      "source": "/execute", 
-      "destination": "/api/terminal" 
+      "source": "/:path*", 
+      "destination": "/api/raw?path=:path*" 
     }
   ]
 }
