@@ -46,7 +46,7 @@ export default async function handler(req, res) {
                 <body>
                     <div class="box">
                         <h1>Access Denied</h1>
-                        <p>Protected by WEH-FACE Cloud.</p>
+                        <p>Protected by weh face cloud.</p>
                     </div>
                 </body>
             </html>
