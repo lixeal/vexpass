@@ -400,7 +400,7 @@ local function createOriginialElements()
 		pageLogo.Position = UDim2.new(1, -10, 1, -5)
 		pageLogo.Size = UDim2.new(0.774999976, -25, 1, -15)
 		pageLogo.ZIndex = 0
-		pageLogo.Image = "rbxassetid://"
+		pageLogo.Image = "rbxassetid://8073107254"
 		pageLogo.ImageColor3 = Color3.fromRGB(214, 142, 250)
 		pageLogo.ImageTransparency = 1
 		pageLogo.Parent = holder
