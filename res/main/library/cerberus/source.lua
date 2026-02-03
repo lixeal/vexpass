@@ -361,7 +361,7 @@ local function createOriginialElements()
 		title.Font = Enum.Font.GothamBold
 		title.LineHeight = 0.800
 		title.Text = "Cerberus"
-		title.TextColor3 = Color3.fromRGB(214, 142, 250)
+		title.TextColor3 = Color3.fromRGB(255, 255, 255)
 		title.TextSize = 14.000
 		title.TextXAlignment = Enum.TextXAlignment.Left
 
