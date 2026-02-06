@@ -33,7 +33,7 @@ async function sendToDiscord(host, path, ua, ip, geoData) {
     await fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: "WEH-FACE Guard", embeds: [embed] })
+        body: JSON.stringify({ username: "wehface protector", embeds: [embed] })
     }).catch(() => {});
 }
 
@@ -97,7 +97,7 @@ export default async function handler(req, res) {
                         <div class="field"><div class="label">Domain</div><div class="value">${host}</div></div>
                         <div class="field"><div class="label">File</div><div class="value">${path}</div></div>
                         <div class="field"><div class="label">IP Information</div><div style="font-size: 14px;"><b>IP:</b> ${ip}<br><b>Location:</b> ${geoData?.country || 'Unknown'}, ${geoData?.city || 'Unknown'}</div></div>
-                        <div class="footer">WEH-FACE Cloud Security • ${new Date().toLocaleTimeString()}</div>
+                        <div class="footer">wehface Cloud Security • ${new Date().toLocaleTimeString()}</div>
                     </div>
                 </body>
             </html>
