@@ -2,72 +2,33 @@
 <html lang="{{LANG}}">
 <head>
     <meta charset="UTF-8">
-    <title>VexPass | Testing Environment</title>
+    <title>VEXPASS | TEST</title>
     <link rel="icon" type="image/svg+xml" href="{{ICON_PATH}}">
     <style>
         body {
-            margin: 0; background-color: #0b0b0b; color: #d1d1d1;
-            font-family: 'Segoe UI', sans-serif;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='800'%3E%3Cpath d='M760 120c-40 0-60-20-60-40s-20-40-60-40-60 20-60 40-20 40-60 40' fill='none' stroke='%231a1a1a' stroke-width='1'/%3E%3C/svg%3E");
-            display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
-            height: 100vh; padding-left: 10%;
+            margin: 0; padding: 0; background-color: #323232;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600' viewBox='0 0 600 600'%3E%3Cpath fill='%23888888' fill-opacity='0.15' d='M600 325.1v-1.17c-6.5 3.83-13.06 7.64-14.68 8.64-10.6 6.56-18.57 12.56-24.68 19.09-5.58 5.95-12.44 10.06-22.42 14.15-1.45.6-2.96 1.2-4.83 1.9l-4.75 1.82c-9.78 3.75-14.8 6.27-18.98 10.1-4.23 3.88-9.65 6.6-16.77 8.84-1.95.6-3.99 1.17-6.47 1.8l-6.14 1.53c-5.29 1.35-8.3 2.37-10.54 3.78'/%3E%3C/svg%3E");
+            color: #d1d1d1; font-family: 'Segoe UI', sans-serif;
+            display: flex; justify-content: flex-start; align-items: center; height: 100vh;
         }
-        .status-badge {
-            background: rgba(255, 165, 0, 0.1); color: orange;
-            border: 1px solid orange; padding: 4px 12px;
-            border-radius: 4px; font-size: 12px; letter-spacing: 2px;
-            margin-bottom: 20px; text-transform: uppercase;
-        }
-        h1 { color: white; font-size: 50px; margin: 0; letter-spacing: 5px; }
-        p { max-width: 600px; line-height: 1.6; font-size: 16px; margin: 20px 0; }
-        .warning-box {
-            border-left: 3px solid orange; background: rgba(255, 165, 0, 0.02);
-            padding: 15px 25px; margin: 30px 0; max-width: 600px;
-        }
+        .content { max-width: 600px; margin-left: 10%; padding: 20px; }
+        h1 { color: white; font-size: 42px; letter-spacing: 2px; margin-bottom: 30px; }
+        p { line-height: 1.6; font-size: 15px; margin-bottom: 20px; }
         .yellow { color: #ffcc00; font-weight: bold; }
-        .gray { color: #444; font-size: 13px; margin-top: 40px; }
         a { color: white; text-decoration: underline; }
-        .lang-switcher { position: fixed; bottom: 20px; left: 20px; font-size: 12px; color: #333; }
-        .active { color: #666; font-weight: bold; }
+        .signature { margin-top: 40px; font-size: 15px; }
+        .footer-copy { margin-top: 30px; font-size: 13px; color: #666; }
     </style>
 </head>
 <body>
-    <div class="status-badge">Testing Mode Active</div>
-    <h1>VEXPASS</h1>
-    
-    <p id="t-desc"></p>
-    
-    <div class="warning-box" id="t-warn"></div>
-
-    <div id="t-links" style="font-size: 14px; color: #888;"></div>
-
-    <div class="gray">DxBreak Team 2025-2026©</div>
-
-    <div class="lang-switcher">
-        <span id="l-ru">RU</span> | <span id="l-en">EN</span>
+    <div class="content">
+        <h1>VEXPASS</h1>
+        <p>Домен для теста скриптов.</p>
+        <p class="yellow">Если вы не укажете автора нашего скрипта, мы будем вынуждены занести вас в черный список проекта!</p>
+        <p>Если вы хотите вступить в группу тестеров, перейдите в наш <a href="https://discord.gg/FGXGdVxbue">Discord Channel</a>!</p>
+        
+        <div class="signature"><strong>Команда DxBreak.</strong></div>
+        <div class="footer-copy">DXBREAK 2025 - 2026©</div>
     </div>
-
-    <script>
-        const lang = "{{LANG}}";
-        const content = {
-            RU: {
-                desc: "Приветствуем, этот домен предназначен для теста скриптов, он не предназначен для использования повседневно!",
-                warn: "За распространение наших скриптов без упоминания нашей команды!<br><br>Если вы хотите попасть к нам в команду тестеров перейдите в наш дискорд канал для отправки заявки!",
-                links: "Все ссылки тут <a href='/links'>[CLICK]</a>"
-            },
-            EN: {
-                desc: "Welcome, this domain is for script testing only. It is not intended for regular use!",
-                warn: "Distributing our scripts without team credit is prohibited!<br><br>If you want to join our testing team, please apply through our Discord channel!",
-                links: "All links here <a href='/links'>[CLICK]</a>"
-            }
-        };
-
-        const t = content[lang];
-        document.getElementById('t-desc').innerText = t.desc;
-        document.getElementById('t-warn').innerHTML = `<span class="yellow">${t.warn}</span>`;
-        document.getElementById('t-links').innerHTML = t.links;
-        document.getElementById('l-ru').className = lang === 'RU' ? 'active' : '';
-        document.getElementById('l-en').className = lang === 'EN' ? 'active' : '';
-    </script>
 </body>
 </html>
