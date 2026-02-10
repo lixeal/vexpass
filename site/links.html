@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>VexPass | Links</title>
+    <link rel="icon" type="image/svg+xml" href="{{ICON_PATH}}">
+    <style>
+        body {
+            background-color: #0b0b0b;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cpath d='M0 200 Q 100 100, 200 200 T 400 200' fill='none' stroke='%23ffffff' stroke-width='0.5' opacity='0.05'/%3E%3C/pattern%3E%3C/svg%3E");
+            color: white; font-family: 'Inter', sans-serif;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0;
+        }
+        h1 { font-size: 60px; letter-spacing: 15px; margin-bottom: 30px; }
+        .link-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px 40px; border-radius: 12px; backdrop-filter: blur(10px);
+            min-width: 300px; text-align: left;
+        }
+        .item { margin: 15px 0; font-size: 18px; }
+        .item b { color: #888; font-size: 14px; text-transform: uppercase; display: block; margin-bottom: 5px; }
+        .item a { color: #5865F2; text-decoration: none; transition: 0.3s; }
+        .item a:hover { color: #fff; }
+        .tg-soon { color: #24A1DE; font-weight: bold; }
+        .lang-switcher { position: fixed; bottom: 20px; left: 20px; font-size: 12px; display: flex; gap: 10px; opacity: 0.5; }
+        .active { color: #fff; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>VEXPASS</h1>
+    <div class="link-card">
+        <div class="item">
+            <b id="l-ds">Discord Server</b>
+            <a href="https://discord.gg/TRPZg4Xfkq">discord.gg/TRPZg4Xfkq</a>
+        </div>
+        <div class="item">
+            <b id="l-tg">Telegram Channel</b>
+            <span class="tg-soon">Soon</span>
+        </div>
+    </div>
+    <div class="lang-switcher">
+        <span id="btn-ru">RU</span> | <span id="btn-en">EN</span>
+    </div>
+
+    <script>
+        const lang = "{{LANG}}";
+        document.getElementById('l-ds').innerText = lang === 'RU' ? "Дискорд Сервер" : "Discord Server";
+        document.getElementById('l-tg').innerText = lang === 'RU' ? "Телеграм Канал" : "Telegram Channel";
+        document.getElementById('btn-ru').className = lang === 'RU' ? 'active' : '';
+        document.getElementById('btn-en').className = lang === 'EN' ? 'active' : '';
+    </script>
+</body>
+</html>
