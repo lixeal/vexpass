@@ -20,13 +20,22 @@ export default async function handler(req, res) {
     const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const ip = rawIp.split(',')[0].trim();
     
-    // ИСПРАВЛЕНО: Теперь если пути нет, скрипт не падает, а считает его пустым
-    let requestedPath = req.query.path || ""; 
+    // Получаем путь из запроса (благодаря vercel.json rewrites)
+    let requestedPath = req.query.path || "";
     const cleanPath = requestedPath.split('#')[0].split('?')[0].replace(/\.[^/.]+$/, "");
 
-    // --- 1. ОПРЕДЕЛЕНИЕ ВЕТКИ И ИКОНКИ ---
+    // --- 1. ОПРЕДЕЛЕНИЕ ЯЗЫКА (Параметр или Гео) ---
+    let lang = req.query.lang; 
+    if (!lang || !['RU', 'EN'].includes(lang.toUpperCase())) {
+        const geoData = await getGeo(ip);
+        lang = (geoData && CIS_COUNTRIES.includes(geoData.countryCode)) ? "RU" : "EN";
+    } else {
+        lang = lang.toUpperCase();
+    }
+
+    // --- 2. ОПРЕДЕЛЕНИЕ ВЕТКИ И ИКОНКИ ---
     let targetBranch = "off";
-    let iconName = "vexpass.svg"; 
+    let iconName = "vexpass.svg";
 
     if (host.includes("raw-vexpass")) targetBranch = "raw";
     else if (host.includes("cdn")) targetBranch = "cdn";
@@ -36,23 +45,24 @@ export default async function handler(req, res) {
         iconName = "test-vexpass.svg";
     }
 
-    // Если запрошен конкретный файл — ставим щит
-    if (cleanPath !== "" && cleanPath !== "links") {
+    // Если запрошен файл человеком — всегда иконка щита
+    if (cleanPath !== "") {
         iconName = "ScriptProtector.svg";
     }
 
-    // --- 2. ГЕО И ЯЗЫК ---
-    const geoData = await getGeo(ip);
-    const lang = (geoData && CIS_COUNTRIES.includes(geoData.countryCode)) ? "RU" : "EN";
-
-    // --- 3. ВЫДАЧА ИКОНОК ИЗ РЕПО ---
-    if (requestedPath.startsWith("favicon/")) {
+    // --- 3. ВЫДАЧА СТАТИКИ (Иконки и Фон) ---
+    if (requestedPath.startsWith("favicon/") || requestedPath === "html/bg.svg") {
         try {
-            const { data: iconFile } = await octokit.repos.getContent({
-                owner: OWNER, repo: REPO, path: `site/favicon/${requestedPath.split('/').pop()}`, ref: "main"
+            const fileInRepo = requestedPath.startsWith("favicon/") 
+                ? `site/favicon/${requestedPath.split('/').pop()}`
+                : `site/html/bg.svg`;
+
+            const { data: fileData } = await octokit.repos.getContent({
+                owner: OWNER, repo: REPO, path: fileInRepo, ref: "main"
             });
+            
             res.setHeader('Content-Type', 'image/svg+xml');
-            return res.status(200).send(Buffer.from(iconFile.content, 'base64').toString('utf-8'));
+            return res.status(200).send(Buffer.from(fileData.content, 'base64').toString('utf-8'));
         } catch (e) { return res.status(404).end(); }
     }
 
@@ -63,12 +73,10 @@ export default async function handler(req, res) {
         let pageName = "main.html";
         let isFileRequest = false;
 
-        if (cleanPath === "links") {
-            pageName = "links.html";
-        } else if (targetBranch === "testing" && cleanPath === "") {
+        // Определяем, какую страницу показать
+        if (host.includes("test-offvexpass") && cleanPath === "") {
             pageName = "test.html";
         } else if (cleanPath !== "") {
-            // Если человек ввел путь к файлу — показываем main.html (письмо о закрытии)
             pageName = "main.html"; 
             isFileRequest = true;
         }
@@ -79,21 +87,21 @@ export default async function handler(req, res) {
             });
             let html = Buffer.from(file.content, 'base64').toString('utf-8');
 
-            // Название вкладки: пустое для файлов, VEXPASS для сайтов
+            // Подставляем данные в HTML
             const title = isFileRequest ? "&#x200E;" : "VEXPASS";
-            
             html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
             html = html.replace(/{{LANG}}/g, lang);
             html = html.replace(/{{ICON_PATH}}/g, `/api/raw?path=favicon/${iconName}`);
+            html = html.replace(/{{BG_PATH}}/g, `/api/raw?path=html/bg.svg`);
             
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             return res.status(200).send(html);
         } catch (e) {
-            return res.status(404).send("System error: HTML not found in main branch");
+            return res.status(404).send("VexPass: Page Not Found");
         }
     }
 
-    // --- 5. ВЫДАЧА КОДА (ROBLOX) ---
+    // --- 5. ВЫДАЧА КОДА (ДЛЯ ROBLOX) ---
     try {
         const { data: repoFiles } = await octokit.repos.getContent({
             owner: OWNER, repo: REPO, path: "", ref: targetBranch
@@ -110,6 +118,6 @@ export default async function handler(req, res) {
         res.setHeader('Access-Control-Allow-Origin', '*');
         return res.status(200).send(Buffer.from(blob.content, 'base64').toString('utf-8'));
     } catch (e) {
-        return res.status(404).send(`-- VexPass Error: Resource not found`);
+        return res.status(404).send(`-- VexPass Error: Resource [${cleanPath}] not found in [${targetBranch}]`);
     }
 }
