@@ -8,17 +8,27 @@
     <style>
         body {
             margin: 0; padding: 0; background-color: #323232;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600' viewBox='0 0 600 600'%3E%3Cpath fill='%23888888' fill-opacity='0.15' d='M600 325.1v-1.17c-6.5 3.83-13.06 7.64-14.68 8.64-10.6 6.56-18.57 12.56-24.68 19.09-5.58 5.95-12.44 10.06-22.42 14.15-1.45.6-2.96 1.2-4.83 1.9l-4.75 1.82c-9.78 3.75-14.8 6.27-18.98 10.1-4.23 3.88-9.65 6.6-16.77 8.84-1.95.6-3.99 1.17-6.47 1.8l-6.14 1.53c-5.29 1.35-8.3 2.37-10.54 3.78'/%3E%3C/svg%3E");
+            background-image: url("{{BG_PATH}}"); /* Берем из файла */
+            background-size: cover;
             color: #d1d1d1; font-family: 'Segoe UI', sans-serif;
             display: flex; justify-content: flex-start; align-items: center; height: 100vh;
         }
-        .content { max-width: 600px; margin-left: 10%; padding: 20px; }
+        .content { max-width: 600px; margin-left: 10%; padding: 20px; z-index: 2; }
         h1 { color: white; font-size: 42px; letter-spacing: 2px; margin-bottom: 30px; }
         p { line-height: 1.6; font-size: 15px; margin-bottom: 20px; }
         a { color: white; text-decoration: underline; transition: 0.3s; }
         a:hover { color: #888; }
         .signature { margin-top: 40px; font-size: 15px; }
         .footer-link { display: inline-block; margin-top: 30px; border: 1px solid #444; padding: 5px 15px; border-radius: 3px; font-size: 13px; background: rgba(255,255,255,0.02); }
+        
+        .lang-switcher {
+            position: fixed; bottom: 20px; left: 20px;
+            background: rgba(0, 0, 0, 0.4); padding: 8px 12px;
+            border-radius: 5px; font-size: 12px; border: 1px solid #444; z-index: 10;
+        }
+        .lang-btn { cursor: pointer; opacity: 0.5; transition: 0.3s; }
+        .lang-btn.active { opacity: 1; font-weight: bold; color: white; }
+        .lang-btn:hover { opacity: 1; }
     </style>
 </head>
 <body>
@@ -28,12 +38,28 @@
         <div class="signature">Искренне,<br><strong>Команда DxBreak.</strong></div>
         <div class="footer-link">dxbreaksoftware</div>
     </div>
+
+    <div class="lang-switcher">
+        <span class="lang-btn" id="btn-ru">RU</span> | 
+        <span class="lang-btn" id="btn-en">EN</span>
+    </div>
+
     <script>
+        const lang = "{{LANG}}";
         const translations = {
             RU: `<p><strong>Давайте сразу к делу:</strong> мы больше не будем предлагать услуги VEXPASS. Мы прекратили поддержку сервисов с момента публикации этого объявления, и все данные пользователей были удалены.</p><p>VEXPASS был важен для роста нашей команды, но стало ясно, что нам нужно расширять горизонты. Сейчас вы можете узнать больше в нашем сообществе: <a href="https://discord.gg/FGXGdVxbue">https://discord.gg/FGXGdVxbue</a></p><p>Мы хотим поблагодарить наших пользователей за их поддержку и понимание на протяжении всех этих лет.</p>`,
             EN: `<p><strong>Let's get straight to the point:</strong> we will no longer be offering VEXPASS services. We have ceased support for all services effective immediately, and all user data has been deleted.</p><p>VEXPASS was vital to our growth, but it's time to move forward. Learn more in our community: <a href="https://discord.gg/FGXGdVxbue">https://discord.gg/FGXGdVxbue</a></p><p>We want to thank our users for their support and understanding throughout all these years.</p>`
         };
-        document.getElementById('text-container').innerHTML = translations["{{LANG}}"] || translations.EN;
+
+        document.getElementById('text-container').innerHTML = translations[lang] || translations.EN;
+        
+        // Кнопки переключения
+        document.getElementById('btn-ru').classList.toggle('active', lang === 'RU');
+        document.getElementById('btn-en').classList.toggle('active', lang === 'EN');
+
+        // Логика смены (имитируем смену через URL параметр для Vercel)
+        document.getElementById('btn-ru').onclick = () => { window.location.search = "?lang=RU"; };
+        document.getElementById('btn-en').onclick = () => { window.location.search = "?lang=EN"; };
     </script>
 </body>
 </html>
