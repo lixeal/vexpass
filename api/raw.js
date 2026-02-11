@@ -7,14 +7,22 @@ const REPO = "vexpass";
 export default async function handler(req, res) {
     const host = req.headers.host || "";
     const userAgent = req.headers['user-agent'] || "";
-    const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    const ip = rawIp.split(',')[0].trim();
-    
     const url = new URL(req.url, `http://${host}`);
-    const fullPath = url.pathname.slice(1);
+    let fullPath = url.pathname.slice(1);
     const isTrailingSlash = url.pathname.endsWith('/');
 
-    // --- 1. ОПРЕДЕЛЕНИЕ БРАНЧА ---
+    // --- 1. ПРЯМОЙ ПЕРЕХВАТ СТАТИКИ (Чтобы фон и иконки работали) ---
+    if (fullPath.includes("bg.svg") || fullPath.includes("favicon/")) {
+        try {
+            const staticPath = fullPath.includes("bg.svg") ? `site/html/bg.svg` : `site/favicon/${fullPath.split('/').pop()}`;
+            const { data: file } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path: staticPath, ref: "main" });
+            res.setHeader('Content-Type', 'image/svg+xml');
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            return res.status(200).send(Buffer.from(file.content, 'base64').toString('utf-8'));
+        } catch (e) { return res.status(404).end(); }
+    }
+
+    // --- 2. ОПРЕДЕЛЕНИЕ БРАНЧА ---
     let targetBranch = "off";
     let iconName = "vexpass.svg";
 
@@ -23,21 +31,14 @@ export default async function handler(req, res) {
     else if (host.includes("cdn")) targetBranch = "cdn";
     else if (host.includes("api")) targetBranch = "api";
 
-    if (fullPath !== "") iconName = "ScriptProtector.svg";
-
-    // --- 2. СТАТИКА (Favicon/BG) ---
-    if (fullPath.startsWith("favicon/") || fullPath === "html/bg.svg") {
-        try {
-            const repoPath = fullPath.startsWith("favicon/") ? `site/favicon/${fullPath.split('/').pop()}` : `site/html/bg.svg`;
-            const { data: file } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path: repoPath, ref: "main" });
-            res.setHeader('Content-Type', 'image/svg+xml');
-            return res.status(200).send(Buffer.from(file.content, 'base64').toString('utf-8'));
-        } catch (e) { return res.status(404).end(); }
-    }
+    if (fullPath !== "" && !isTrailingSlash) iconName = "ScriptProtector.svg";
 
     const isRoblox = userAgent.includes("Roblox");
+    const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const ip = rawIp.split(',')[0].trim();
 
-    // --- 3. ПИНГ ЛОГГЕРА (Для браузера) ---
+    // --- 3. ПИНГ ЛОГГЕРА (Back-end) ---
+    // Не шлем логи, если это Roblox, статика или пустой путь
     if (!isRoblox && fullPath !== "" && !isTrailingSlash) {
         fetch(`https://${host}/api/logger`, {
             method: 'POST',
@@ -48,16 +49,17 @@ export default async function handler(req, res) {
 
     // --- 4. БРАУЗЕР (UI) ---
     if (!isRoblox) {
-        let pageName = (targetBranch === "testing" && fullPath === "") ? "test.html" : "main.html";
+        let pageName = (targetBranch === "testing" && (fullPath === "" || fullPath === "/")) ? "test.html" : "main.html";
         try {
             const { data: file } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path: `site/html/${pageName}`, ref: "main" });
             let html = Buffer.from(file.content, 'base64').toString('utf-8');
             const title = (fullPath !== "" && !isTrailingSlash && targetBranch !== "testing") ? "&#x200E;" : "VEXPASS";
             
+            // Вставляем прямые пути, чтобы logger не считал их за файлы
             html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`)
                        .replace(/{{LANG}}/g, "RU")
-                       .replace(/{{ICON_PATH}}/g, `/api/raw?path=favicon/${iconName}`)
-                       .replace(/{{BG_PATH}}/g, `/api/raw?path=html/bg.svg`);
+                       .replace(/{{ICON_PATH}}/g, `/favicon/${iconName}`)
+                       .replace(/{{BG_PATH}}/g, `/html/bg.svg`);
             
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             return res.status(200).send(html);
@@ -65,12 +67,10 @@ export default async function handler(req, res) {
     }
 
     // --- 5. ВЫДАЧА КОДА (ROBLOX) ---
-    // Если есть слэш в конце — сразу отшиваем (твоё условие)
-    if (isTrailingSlash || fullPath === "") return res.status(404).send("-- VexPass: Direct file access only");
+    if (isTrailingSlash || fullPath === "") return res.status(404).send("-- VexPass: Direct access only");
 
     try {
         const { data: repoContent } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path: "", ref: targetBranch });
-        
         const cleanName = fullPath.replace(/\.[^/.]+$/, "");
         const targetFile = repoContent.find(f => f.type === "file" && (f.name === fullPath || f.name === `${fullPath}.lua` || f.name === cleanName));
 
