@@ -4,58 +4,6 @@ const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 const OWNER = "lixeal";
 const REPO = "vexpass";
 const BRANCH = "off";
-const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK;
-
-const CIS_COUNTRIES = ['RU', 'UA', 'BY', 'KZ', 'AM', 'AZ', 'GE', 'MD', 'KG', 'TJ', 'UZ', 'TM'];
-
-async function sendLog(ip, host, path, userAgent, geo) {
-    if (!DISCORD_WEBHOOK) return;
-
-    // Игнорируем запросы к ассетам (фон и иконки)
-    if (path.includes("html/bg") || path.includes("favicon/")) return;
-    
-    const isRoblox = userAgent.includes("Roblox");
-    const title = isRoblox ? "Script Executed" : "Access Blocked";
-    
-    // Данные из ГЕО
-    const location = geo ? `${geo.country}, ${geo.city}` : "Unknown Location";
-    const isp = geo ? geo.isp : "Unknown ISP";
-    
-    // Формируем дату как в твоем примере
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'});
-
-    // Тот самый формат
-    const logText = "```" + 
-                    `${title} \n` +
-                    `            Domain                                      File\n` +
-                    `\`${host}\`            \`${path || "index"}\`\n` +
-                    ` User-Agent\n` +
-                    `\`${userAgent}\`\n` +
-                    ` IP Info\n` +
-                    `IP: ${ip}\n` +
-                    `Location: ${location}\n` +
-                    `ISP: ${isp}\n` +
-                    `WEH-FACE Security Center • ${dateStr}` +
-                    "```";
-
-    try {
-        await fetch(DISCORD_WEBHOOK, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content: logText })
-        });
-    } catch (e) { console.error("Webhook error"); }
-}
-
-async function getGeo(ip) {
-    try {
-        // Запрашиваем расширенные поля для ISP и города
-        const res = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,city,isp`);
-        const data = await res.json();
-        return data.status === 'success' ? data : null;
-    } catch (e) { return null; }
-}
 
 export default async function handler(req, res) {
     const host = req.headers.host || "";
@@ -66,10 +14,7 @@ export default async function handler(req, res) {
     let requestedPath = req.query.path || "";
     const cleanPath = requestedPath.split('#')[0].split('?')[0].replace(/\.[^/.]+$/, "");
 
-    const geoData = await getGeo(ip);
-    await sendLog(ip, host, cleanPath, userAgent, geoData);
-
-    // --- ЛОГИКА ПАПОК ---
+    // --- 1. ОПРЕДЕЛЕНИЕ ПАПКИ И ИКОНКИ ---
     let subFolder = "main";
     let iconName = "vexpass.svg";
 
@@ -80,10 +25,12 @@ export default async function handler(req, res) {
 
     if (cleanPath !== "") iconName = "ScriptProtector.svg";
 
-    // --- ВЫДАЧА СТАТИКИ ---
+    // --- 2. ВЫДАЧА СТАТИКИ (Favicon/BG) ---
     if (requestedPath.startsWith("favicon/") || requestedPath === "html/bg.svg") {
         try {
-            const repoPath = requestedPath.startsWith("favicon/") ? `site/favicon/${requestedPath.split('/').pop()}` : `site/html/bg.svg`;
+            const repoPath = requestedPath.startsWith("favicon/") 
+                ? `site/favicon/${requestedPath.split('/').pop()}` 
+                : `site/html/bg.svg`;
             const { data: file } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path: repoPath, ref: "main" });
             res.setHeader('Content-Type', 'image/svg+xml');
             return res.status(200).send(Buffer.from(file.content, 'base64').toString('utf-8'));
@@ -92,13 +39,17 @@ export default async function handler(req, res) {
 
     const isRoblox = userAgent.includes("Roblox");
 
-    // --- БРАУЗЕР (САЙТ) ---
+    // --- 3. БРАУЗЕР (САЙТ) ---
     if (!isRoblox) {
         let pageName = "main.html";
-        let lang = req.query.lang || (geoData && CIS_COUNTRIES.includes(geoData.countryCode) ? "RU" : "EN");
+        // По умолчанию ставим RU, так как ГЕО вырезали (или можешь поменять на EN)
+        let lang = req.query.lang || "RU"; 
 
-        if (subFolder === "testing" && cleanPath === "") pageName = "test.html";
-        else if (cleanPath !== "") pageName = "main.html"; 
+        if (subFolder === "testing" && cleanPath === "") {
+            pageName = "test.html";
+        } else if (cleanPath !== "") {
+            pageName = "main.html"; 
+        }
 
         try {
             const { data: file } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path: `site/html/${pageName}`, ref: "main" });
@@ -115,15 +66,17 @@ export default async function handler(req, res) {
         } catch (e) { return res.status(404).send("UI Error"); }
     }
 
-    // --- ВЫДАЧА КОДА (ROBLOX / RAW) ---
+    // --- 4. ВЫДАЧА КОДА (ROBLOX / RAW DOWNLOAD) ---
     try {
         const { data: repoFiles } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path: subFolder, ref: BRANCH });
         const targetFile = repoFiles.find(f => f.name.replace(/\.[^/.]+$/, "") === cleanPath);
+        
         if (!targetFile) throw new Error();
 
         const { data: blob } = await octokit.git.getBlob({ owner: OWNER, repo: REPO, file_sha: targetFile.sha });
         const content = Buffer.from(blob.content, 'base64').toString('utf-8');
 
+        // Если домен raw — скачиваем
         if (host.includes("raw-vexpass")) {
             res.setHeader('Content-Disposition', `attachment; filename="${targetFile.name}"`);
         }
@@ -132,6 +85,6 @@ export default async function handler(req, res) {
         res.setHeader('Access-Control-Allow-Origin', '*');
         return res.status(200).send(content);
     } catch (e) {
-        return res.status(404).send(`-- VexPass Error`);
+        return res.status(404).send(`-- VexPass Error: Resource not found`);
     }
 }
