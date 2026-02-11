@@ -11,20 +11,32 @@ const CIS_COUNTRIES = ['RU', 'UA', 'BY', 'KZ', 'AM', 'AZ', 'GE', 'MD', 'KG', 'TJ
 async function sendLog(ip, host, path, userAgent, geo) {
     if (!DISCORD_WEBHOOK) return;
 
-    // ФИЛЬТР: не логируем запросы к фону и иконкам
+    // Игнорируем запросы к ассетам (фон и иконки)
     if (path.includes("html/bg") || path.includes("favicon/")) return;
     
-    const country = geo ? geo.countryCode : '??';
     const isRoblox = userAgent.includes("Roblox");
-    const eventType = isRoblox ? "🚀 SCRIPT EXECUTION" : "🌐 WEB VISIT";
+    const title = isRoblox ? "Script Executed" : "Access Blocked";
+    
+    // Данные из ГЕО
+    const location = geo ? `${geo.country}, ${geo.city}` : "Unknown Location";
+    const isp = geo ? geo.isp : "Unknown ISP";
+    
+    // Формируем дату как в твоем примере
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'});
 
-    // Оформление через блоки кода ```
-    const logText = `**${eventType}**\n` +
-                    "```yaml\n" +
-                    `IP: ${ip} (${country})\n` +
-                    `Domain: ${host}\n` +
-                    `Path: ${path}\n` +
-                    `User-Agent: ${isRoblox ? "Roblox" : "Browser"}\n` +
+    // Тот самый формат
+    const logText = "```" + 
+                    `${title} \n` +
+                    `            Domain                                      File\n` +
+                    `\`${host}\`            \`${path || "index"}\`\n` +
+                    ` User-Agent\n` +
+                    `\`${userAgent}\`\n` +
+                    ` IP Info\n` +
+                    `IP: ${ip}\n` +
+                    `Location: ${location}\n` +
+                    `ISP: ${isp}\n` +
+                    `WEH-FACE Security Center • ${dateStr}` +
                     "```";
 
     try {
@@ -38,7 +50,8 @@ async function sendLog(ip, host, path, userAgent, geo) {
 
 async function getGeo(ip) {
     try {
-        const res = await fetch(`http://ip-api.com/json/${ip}?fields=status,countryCode`);
+        // Запрашиваем расширенные поля для ISP и города
+        const res = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,city,isp`);
         const data = await res.json();
         return data.status === 'success' ? data : null;
     } catch (e) { return null; }
@@ -53,11 +66,10 @@ export default async function handler(req, res) {
     let requestedPath = req.query.path || "";
     const cleanPath = requestedPath.split('#')[0].split('?')[0].replace(/\.[^/.]+$/, "");
 
-    // Получаем ГЕО и шлем лог
     const geoData = await getGeo(ip);
-    await sendLog(ip, host, cleanPath || "/", userAgent, geoData);
+    await sendLog(ip, host, cleanPath, userAgent, geoData);
 
-    // --- ОПРЕДЕЛЕНИЕ ПАПКИ ---
+    // --- ЛОГИКА ПАПОК ---
     let subFolder = "main";
     let iconName = "vexpass.svg";
 
@@ -85,11 +97,8 @@ export default async function handler(req, res) {
         let pageName = "main.html";
         let lang = req.query.lang || (geoData && CIS_COUNTRIES.includes(geoData.countryCode) ? "RU" : "EN");
 
-        if (subFolder === "testing" && cleanPath === "") {
-            pageName = "test.html";
-        } else if (cleanPath !== "") {
-            pageName = "main.html"; 
-        }
+        if (subFolder === "testing" && cleanPath === "") pageName = "test.html";
+        else if (cleanPath !== "") pageName = "main.html"; 
 
         try {
             const { data: file } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path: `site/html/${pageName}`, ref: "main" });
@@ -110,7 +119,6 @@ export default async function handler(req, res) {
     try {
         const { data: repoFiles } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path: subFolder, ref: BRANCH });
         const targetFile = repoFiles.find(f => f.name.replace(/\.[^/.]+$/, "") === cleanPath);
-        
         if (!targetFile) throw new Error();
 
         const { data: blob } = await octokit.git.getBlob({ owner: OWNER, repo: REPO, file_sha: targetFile.sha });
@@ -124,6 +132,6 @@ export default async function handler(req, res) {
         res.setHeader('Access-Control-Allow-Origin', '*');
         return res.status(200).send(content);
     } catch (e) {
-        return res.status(404).send(`-- VexPass Error: Resource not found`);
+        return res.status(404).send(`-- VexPass Error`);
     }
 }
