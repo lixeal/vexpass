@@ -1,9 +1,0 @@
-{
-  "name": "vexpass-backend",
-  "version": "1.0.0",
-  "main": "api/raw.js",
-  "dependencies": {
-    "@octokit/rest": "^20.0.0",
-    "node-fetch": "^3.3.2"
-  }
-}
