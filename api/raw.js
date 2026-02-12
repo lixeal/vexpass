@@ -6,6 +6,7 @@ const REPO = "vexpass";
 
 export default async function handler(req, res) {
     const host = req.headers.host || "";
+    const userAgent = req.headers['user-agent'] || "";
     const fullPath = req.url.split('?')[0].replace(/^\/+/g, '');
     const isTrailingSlash = req.url.split('?')[0].endsWith('/');
 
@@ -17,18 +18,43 @@ export default async function handler(req, res) {
     // 2. Игнорируем системные запросы
     if (fullPath === "favicon.ico" || fullPath.startsWith("api/")) return res.status(404).end();
 
-    // 3. Главная страница (если зашли просто на домен)
-    if (fullPath === "" || isTrailingSlash) {
-        return res.status(200).send("<h1>VexPass Backend Active</h1>");
+    // --- ЗАЩИТА ---
+    // Если это НЕ Roblox и НЕ специальный параметр ?raw=true, показываем сайт
+    const isRoblox = userAgent.includes("Roblox");
+    const isDirectRaw = req.query.raw === "true"; // Чтобы ты мог сам поглядеть код через браузер, добавив ?raw=true
+
+    if (!isRoblox && !isDirectRaw) {
+        // Тут мы отдаем HTML страницу вместо кода
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.status(200).send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>VexPass CDN</title>
+                <style>
+                    body { background: #0f0f0f; color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+                    .card { border: 1px solid #333; padding: 20px; border-radius: 10px; text-align: center; background: #1a1a1a; }
+                    .btn { display: inline-block; margin-top: 15px; padding: 10px 20px; background: #0070f3; color: white; text-decoration: none; border-radius: 5px; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <h1>VexPass Systems</h1>
+                    <p>Accessing: <code>${fullPath}</code></p>
+                    <p style="color: #888;">Direct access to script source is restricted.</p>
+                    <a href="https://discord.gg/твой_инвайт" class="btn">Join Discord</a>
+                </div>
+            </body>
+            </html>
+        `);
     }
 
+    // --- ЕСЛИ ПРОШЕЛ ПРОВЕРКУ (ЭТО РОБЛОКС) ---
     try {
-        // Разделяем путь на папки и файл
         const pathParts = fullPath.split('/');
         const fileName = pathParts.pop(); 
         const folderPath = pathParts.join('/'); 
 
-        // Запрашиваем содержимое папки в GitHub
         const { data: repoContent } = await octokit.repos.getContent({
             owner: OWNER,
             repo: REPO,
@@ -36,7 +62,6 @@ export default async function handler(req, res) {
             ref: targetBranch
         });
 
-        // Ищем файл (с расширением .lua или без)
         const targetFile = repoContent.find(f => 
             f.type === "file" && 
             (f.name === fileName || f.name === `${fileName}.lua`)
@@ -44,7 +69,6 @@ export default async function handler(req, res) {
 
         if (!targetFile) throw new Error("File not found");
 
-        // Получаем содержимое файла
         const { data: blob } = await octokit.git.getBlob({
             owner: OWNER,
             repo: REPO,
@@ -53,12 +77,11 @@ export default async function handler(req, res) {
 
         const content = Buffer.from(blob.content, 'base64').toString('utf-8');
 
-        // Заголовки для Roblox
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Access-Control-Allow-Origin', '*');
         return res.status(200).send(content);
 
     } catch (e) {
-        return res.status(404).send(`-- Error: File [${fullPath}] not found in [${targetBranch}] branch`);
+        return res.status(404).send(`-- Error: Resource not found`);
     }
 }
