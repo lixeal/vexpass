@@ -8,80 +8,79 @@ export default async function handler(req, res) {
     const host = req.headers.host || "";
     const userAgent = req.headers['user-agent'] || "";
     const fullPath = req.url.split('?')[0].replace(/^\/+/g, '');
-    const isTrailingSlash = req.url.split('?')[0].endsWith('/');
 
-    // 1. Определение бранча
+    // 1. Определение бранча по домену
     let targetBranch = "main";
     if (host.includes("off-vexpass") || host.includes("offvexpass")) targetBranch = "off";
     if (host.includes("cdn-vexpass")) targetBranch = "cdn";
 
-    // 2. Игнорируем системные запросы
+    // 2. Определение файла интерфейса (строго по твоему условию)
+    // Только для этого домена test.html, для всех остальных main.html
+    let interfaceFile = (host === "test-offvexpass.vercel.app") ? "test.html" : "main.html";
+
     if (fullPath === "favicon.ico" || fullPath.startsWith("api/")) return res.status(404).end();
 
-    // --- ЗАЩИТА ---
-    // Если это НЕ Roblox и НЕ специальный параметр ?raw=true, показываем сайт
-    const isRoblox = userAgent.includes("Roblox");
-    const isDirectRaw = req.query.raw === "true"; // Чтобы ты мог сам поглядеть код через браузер, добавив ?raw=true
+    // --- ФОНОВЫЙ ЛОГГЕР (всегда шлет данные об обращении к файлу) ---
+    try {
+        fetch(`https://${host}/api/logger`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+                path: fullPath,
+                branch: targetBranch,
+                userAgent: userAgent,
+                isBrowser: !userAgent.includes("Roblox")
+            })
+        }).catch(() => {});
+    } catch(e) {}
 
-    if (!isRoblox && !isDirectRaw) {
-        // Тут мы отдаем HTML страницу вместо кода
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        return res.status(200).send(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>VexPass CDN</title>
-                <style>
-                    body { background: #0f0f0f; color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-                    .card { border: 1px solid #333; padding: 20px; border-radius: 10px; text-align: center; background: #1a1a1a; }
-                    .btn { display: inline-block; margin-top: 15px; padding: 10px 20px; background: #0070f3; color: white; text-decoration: none; border-radius: 5px; }
-                </style>
-            </head>
-            <body>
-                <div class="card">
-                    <h1>VexPass Systems</h1>
-                    <p>Accessing: <code>${fullPath}</code></p>
-                    <p style="color: #888;">Direct access to script source is restricted.</p>
-                    <a href="https://discord.gg/твой_инвайт" class="btn">Join Discord</a>
-                </div>
-            </body>
-            </html>
-        `);
+    // --- ПРОВЕРКА: ЧЕЛОВЕК ИЛИ РОБЛОКС ---
+    const isRoblox = userAgent.includes("Roblox");
+
+    if (!isRoblox) {
+        // Если зашел человек — грузим выбранный HTML файл из GitHub
+        try {
+            const { data: fileData } = await octokit.repos.getContent({
+                owner: OWNER,
+                repo: REPO,
+                path: interfaceFile,
+                ref: targetBranch
+            });
+
+            const htmlContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            return res.status(200).send(htmlContent);
+        } catch (err) {
+            return res.status(500).send(`Error: Interface file [${interfaceFile}] not found in [${targetBranch}] branch`);
+        }
     }
 
-    // --- ЕСЛИ ПРОШЕЛ ПРОВЕРКУ (ЭТО РОБЛОКС) ---
+    // --- ЕСЛИ РОБЛОКС — ВЫДАЕМ КОД ---
     try {
         const pathParts = fullPath.split('/');
         const fileName = pathParts.pop(); 
         const folderPath = pathParts.join('/'); 
 
         const { data: repoContent } = await octokit.repos.getContent({
-            owner: OWNER,
-            repo: REPO,
-            path: folderPath,
-            ref: targetBranch
+            owner: OWNER, repo: REPO, path: folderPath, ref: targetBranch
         });
 
         const targetFile = repoContent.find(f => 
-            f.type === "file" && 
-            (f.name === fileName || f.name === `${fileName}.lua`)
+            f.type === "file" && (f.name === fileName || f.name === `${fileName}.lua`)
         );
 
-        if (!targetFile) throw new Error("File not found");
+        if (!targetFile) throw new Error("Not Found");
 
         const { data: blob } = await octokit.git.getBlob({
-            owner: OWNER,
-            repo: REPO,
-            file_sha: targetFile.sha
+            owner: OWNER, repo: REPO, file_sha: targetFile.sha
         });
 
         const content = Buffer.from(blob.content, 'base64').toString('utf-8');
-
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Access-Control-Allow-Origin', '*');
         return res.status(200).send(content);
-
     } catch (e) {
-        return res.status(404).send(`-- Error: Resource not found`);
+        return res.status(404).send("-- VexPass: Script not found");
     }
 }
