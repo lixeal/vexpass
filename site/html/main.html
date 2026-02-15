@@ -8,7 +8,7 @@
     <style>
         body {
             margin: 0; padding: 0; background-color: #323232;
-            background-image: url("/site/html/bg.svg"); /* Берем из файла */
+            background-image: url("/site/html/bg.svg");
             background-size: cover;
             color: #d1d1d1; font-family: 'Segoe UI', sans-serif;
             display: flex; justify-content: flex-start; align-items: center; height: 100vh;
@@ -21,13 +21,14 @@
         .signature { margin-top: 40px; font-size: 15px; }
         .footer-link { display: inline-block; margin-top: 30px; border: 1px solid #444; padding: 5px 15px; border-radius: 3px; font-size: 13px; background: rgba(255,255,255,0.02); }
         
+        /* Переключатель */
         .lang-switcher {
             position: fixed; bottom: 20px; left: 20px;
             background: rgba(0, 0, 0, 0.4); padding: 8px 12px;
             border-radius: 5px; font-size: 12px; border: 1px solid #444; z-index: 10;
         }
-        .lang-btn { cursor: pointer; opacity: 0.5; transition: 0.3s; }
-        .lang-btn.active { opacity: 1; font-weight: bold; color: white; }
+        .lang-btn { cursor: pointer; opacity: 0.5; transition: 0.3s; color: #fff; text-decoration: none; }
+        .lang-btn.active { opacity: 1; font-weight: bold; color: #6366f1; }
         .lang-btn:hover { opacity: 1; }
     </style>
 </head>
@@ -35,31 +36,45 @@
     <div class="content">
         <h1>WINXS</h1>
         <div id="text-container"></div>
-        <div class="signature">Искренне,<br><strong>Команда 02xTeam.</strong></div>
+        <div class="signature" id="signature-container"></div>
         <div class="footer-link">02xSoftware</div>
     </div>
 
     <div class="lang-switcher">
-        <span class="lang-btn" id="btn-ru">RU</span> | 
-        <span class="lang-btn" id="btn-en">EN</span>
+        <span class="lang-btn" id="btn-RU" onclick="setLang('RU')">RU</span> | 
+        <span class="lang-btn" id="btn-EN" onclick="setLang('EN')">EN</span>
     </div>
 
     <script>
-        const lang = "{{LANG}}";
+        // Важно: {{LANG}} подставляется сервером (RU или EN)
+        const currentLang = "{{LANG}}".trim(); 
+        
         const translations = {
-            RU: `<p><strong>Давайте сразу к делу:</strong> мы больше не будем предлагать услуги winxs. Мы прекратили поддержку сервисов с момента публикации этого объявления, и все данные пользователей были удалены.</p><p>WINXS был важен для роста нашей команды, но стало ясно, что нам нужно расширять горизонты. Сейчас вы можете узнать больше в нашем сообществе: <a href="https://discord.gg/TRPZg4Xfkq">Дискордик</a></p><p>Мы хотим поблагодарить наших пользователей за их поддержку и понимание на протяжении всех этих лет.</p>`,
-            EN: `<p><strong>Let's get straight to the point:</strong> we will no longer be offering winxs services. We have ceased support for all services effective immediately, and all user data has been deleted.</p><p>WINXS was vital to our growth, but it's time to move forward. Learn more in our community: <a href="https://discord.gg/TRPZg4Xfkq">Discord</a></p><p>We want to thank our users for their support and understanding throughout all these years.</p>`
+            RU: {
+                text: `<p><strong>Давайте сразу к делу:</strong> мы больше не будем предлагать услуги winxs. Мы прекратили поддержку сервисов с момента публикации этого объявления, и все данные пользователей были удалены.</p><p>WINXS был важен для роста нашей команды, но стало ясно, что нам нужно расширять горизонты. Сейчас вы можете узнать больше в нашем сообществе: <a href="https://discord.gg/TRPZg4Xfkq">Дискордик</a></p><p>Мы хотим поблагодарить наших пользователей за их поддержку и понимание на протяжении всех этих лет.</p>`,
+                sign: `Искренне,<br><strong>Команда 02xTeam.</strong>`
+            },
+            EN: {
+                text: `<p><strong>Let's get straight to the point:</strong> we will no longer be offering winxs services. We have ceased support for all services effective immediately, and all user data has been deleted.</p><p>WINXS was vital to our growth, but it's time to move forward. Learn more in our community: <a href="https://discord.gg/TRPZg4Xfkq">Discord</a></p><p>We want to thank our users for their support and understanding throughout all these years.</p>`,
+                sign: `Sincerely,<br><strong>02xTeam.</strong>`
+            }
         };
 
-        document.getElementById('text-container').innerHTML = translations[lang] || translations.EN;
+        // Заполняем контент
+        const data = translations[currentLang] || translations.RU;
+        document.getElementById('text-container').innerHTML = data.text;
+        document.getElementById('signature-container').innerHTML = data.sign;
         
-        // Кнопки переключения
-        document.getElementById('btn-ru').classList.toggle('active', lang === 'RU');
-        document.getElementById('btn-en').classList.toggle('active', lang === 'EN');
+        // Подсветка кнопки
+        const activeBtn = document.getElementById('btn-' + currentLang);
+        if (activeBtn) activeBtn.classList.add('active');
 
-        // Логика смены (имитируем смену через URL параметр для Vercel)
-        document.getElementById('btn-ru').onclick = () => { window.location.search = "?lang=RU"; };
-        document.getElementById('btn-en').onclick = () => { window.location.search = "?lang=EN"; };
+        // Функция смены
+        function setLang(lang) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('lang', lang);
+            window.location.href = url.href;
+        }
     </script>
 </body>
 </html>
