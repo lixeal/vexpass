@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     let rawPath = req.url.split('?')[0].replace(/^\/+/g, '');
     
     // ПРОВЕРКА ТВОЕЙ ПРИПИСКИ =winxs/dev
-    const secretSuffix = "=winxs/dev";
+    const secretSuffix = "=NextExec/02xTeam";
     const isDev = rawPath.endsWith(secretSuffix);
     
     // Если приписка есть, отрезаем её, чтобы получить чистый путь к файлу в GitHub
